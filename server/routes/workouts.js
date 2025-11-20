@@ -34,6 +34,10 @@ router.post('/generate', authenticate, async (req, res) => {
   const db = await getDb();
   const user = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
   
+  if (!user) {
+    return res.status(404).json({ error: 'User not found. Please login again.' });
+  }
+
   const { goals, equipment } = user;
   
   // Helper to generate a single workout plan object

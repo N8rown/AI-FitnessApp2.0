@@ -12,11 +12,11 @@ export async function initDb() {
   });
 
   // Reset tables for schema update (Dev only)
-  await db.exec(`
-    DROP TABLE IF EXISTS nutrition;
-    DROP TABLE IF EXISTS workouts;
-    DROP TABLE IF EXISTS users;
-  `);
+  // await db.exec(`
+  //   DROP TABLE IF EXISTS nutrition;
+  //   DROP TABLE IF EXISTS workouts;
+  //   DROP TABLE IF EXISTS users;
+  // `);
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
