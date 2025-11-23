@@ -26,15 +26,18 @@ export function sanitizeJsonString(jsonStr) {
   s = stripCodeFences(s);
 
   // Handle newlines inside strings: replace actual newlines with \n
-  s = s.replace(/"((?:[^"\\]|\\.)*)"/g, (match, content) => {
+  s = s.replace(/"((?:[^"\\]|\\[\s\S])*)"/g, (match, content) => {
     return '"' + content.replace(/\r?\n/g, '\\n') + '"';
   });
+
+  // Replace literal \n characters (often from LLMs) with spaces, but preserve escaped newlines (\\n)
+  s = s.replace(/(?<!\\)\\n/g, ' ');
 
   // Replace unescaped single quotes with double quotes (best-effort)
   // but avoid touching contractions inside words by targeting property style
   s = s.replace(/\b'([^']+)'\b/g, '"$1"');
-  // Replace numeric ranges like 8-12 with a string "8-12"
-  s = s.replace(/(\d+)\s*-\s*(\d+)/g, '"$1-$2"');
+  // Replace numeric ranges like 8-12 with a string "8-12" ONLY if they follow a colon (value context)
+  s = s.replace(/:\s*(\d+)\s*-\s*(\d+)/g, ': "$1-$2"');
   // Remove trailing commas before closing braces/brackets
   s = s.replace(/,\s*(}[,\]]?)/g, '$1');
   s = s.replace(/,\s*([}\]])/g, '$1');

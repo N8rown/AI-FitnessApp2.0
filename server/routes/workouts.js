@@ -76,8 +76,9 @@ router.post('/generate', authenticate, async (req, res) => {
           // return stringified JSON so rest of code stores a string
           return JSON.stringify(parsed);
         }
-        // Last-resort: return sanitized raw string
-        return stripCodeFences(content);
+        
+        console.warn("AI parsing failed for content:", content);
+        throw new Error("AI output could not be parsed");
       } catch (error) {
         console.error("AI Generation failed, falling back to static logic:", error);
       }
