@@ -13,7 +13,7 @@ const Dashboard = () => {
 
   // Logging State
   const [activeWorkout, setActiveWorkout] = useState(null);
-  const [logData, setLogData] = useState({}); // { exerciseIndex: { setIndex: { weight: 0, reps: 0 } } }
+  const [logText, setLogText] = useState('');
 
   const fetchScheduled = async () => {
     try {
@@ -46,34 +46,28 @@ const Dashboard = () => {
   };
 
   const startLogging = (workout) => {
+    let initialText = workout.plan;
+    // Try to convert legacy JSON plans to text
     try {
-      const plan = JSON.parse(workout.plan);
-      setActiveWorkout({ ...workout, parsedPlan: plan });
-      // Initialize log data structure
-      const initialLog = {};
-      plan.exercises.forEach((ex, i) => {
-        initialLog[i] = [];
-        for(let s=0; s<ex.sets; s++) {
-          initialLog[i].push({ weight: '', reps: ex.reps });
-        }
-      });
-      setLogData(initialLog);
+      const parsed = JSON.parse(workout.plan);
+      if (parsed && parsed.exercises) {
+        initialText = `Focus: ${parsed.focus}\n`;
+        parsed.exercises.forEach((ex, i) => {
+          initialText += `${i+1}. ${ex.name} - ${ex.sets} sets x ${ex.reps} reps\n`;
+        });
+      }
     } catch (e) {
-      console.error("Error parsing plan", e);
+      // It's already text, use as is
     }
-  };
-
-  const updateLog = (exIndex, setIndex, field, value) => {
-    const newLog = { ...logData };
-    newLog[exIndex][setIndex][field] = value;
-    setLogData(newLog);
+    setActiveWorkout(workout);
+    setLogText(initialText);
   };
 
   const submitLog = async () => {
     if (!activeWorkout) return;
     try {
       await api.post(`/workouts/complete/${activeWorkout.id}`, {
-        actual_data: logData
+        actual_data: logText
       });
       setActiveWorkout(null);
       fetchScheduled();
@@ -166,40 +160,15 @@ const Dashboard = () => {
       {/* Logging Modal */}
       {activeWorkout && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white p-6 rounded-lg w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-4">Log Workout: {activeWorkout.parsedPlan.focus}</h2>
+          <div className="bg-white p-6 rounded-lg w-full max-w-2xl m-4 max-h-[90vh] flex flex-col">
+            <h2 className="text-2xl font-bold mb-4">Log Workout</h2>
+            <p className="text-gray-600 mb-2">Edit the plan below to record what you actually did:</p>
             
-            <div className="space-y-6">
-              {activeWorkout.parsedPlan.exercises.map((ex, exIndex) => (
-                <div key={exIndex} className="border p-4 rounded">
-                  <h3 className="font-bold text-lg mb-2">{ex.name}</h3>
-                  <div className="grid grid-cols-3 gap-4 mb-2 font-semibold text-sm text-gray-500">
-                    <div>Set</div>
-                    <div>Weight (lbs)</div>
-                    <div>Reps</div>
-                  </div>
-                  {logData[exIndex]?.map((set, setIndex) => (
-                    <div key={setIndex} className="grid grid-cols-3 gap-4 mb-2 items-center">
-                      <div className="text-gray-600">Set {setIndex + 1}</div>
-                      <input 
-                        type="number" 
-                        className="border p-1 rounded"
-                        placeholder="Weight"
-                        value={set.weight}
-                        onChange={(e) => updateLog(exIndex, setIndex, 'weight', e.target.value)}
-                      />
-                      <input 
-                        type="number" 
-                        className="border p-1 rounded"
-                        placeholder="Reps"
-                        value={set.reps}
-                        onChange={(e) => updateLog(exIndex, setIndex, 'reps', e.target.value)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+            <textarea
+              className="w-full h-96 border p-4 rounded font-mono text-sm"
+              value={logText}
+              onChange={(e) => setLogText(e.target.value)}
+            />
 
             <div className="flex justify-end gap-2 mt-6">
               <button 
@@ -222,18 +191,55 @@ const Dashboard = () => {
       {/* Workout List */}
       <div className="grid gap-6">
         {workouts.map((workout) => {
-          let plan;
+          let displayText = workout.plan;
+          let title = "Workout";
+          
+          // Helper to unescape literal newlines
+          const unescapeNewlines = (str) => str.replace(/\\n/g, '\n');
+
+          // Try to parse legacy JSON for display
           try {
-            plan = JSON.parse(workout.plan);
+            // First, try to clean up potential code fences or prefixes if it looks like JSON
+            let cleanPlan = workout.plan;
+            if (cleanPlan.trim().startsWith('```')) {
+              cleanPlan = cleanPlan.replace(/```json/g, '').replace(/```/g, '');
+            }
+            
+            const parsed = JSON.parse(cleanPlan);
+            if (parsed && parsed.exercises) {
+              title = (parsed.focus || "General") + " Workout";
+              displayText = parsed.exercises.map(ex => `• ${ex.name}: ${ex.sets}x${ex.reps}`).join('\n');
+            } else if (parsed && parsed.focus) {
+               // Handle case where it might be a different JSON structure
+               title = parsed.focus + " Workout";
+               displayText = JSON.stringify(parsed, null, 2);
+            }
           } catch (e) {
-            plan = { focus: 'Legacy', exercises: [] };
+            // It's text or malformed JSON
+            displayText = unescapeNewlines(workout.plan);
+            
+            // If it looks like a raw JSON string but failed to parse, try to make it readable
+            if (displayText.trim().startsWith('{') || displayText.trim().startsWith('[')) {
+               title = "Legacy Workout Data";
+            } else {
+              // Extract title from text
+              const lines = displayText.split('\n');
+              const firstLine = lines[0].trim();
+              if (firstLine.toLowerCase().startsWith('focus:')) {
+                title = firstLine.replace('Focus:', '').trim() + " Workout";
+                // Remove the title line from display text to avoid duplication if desired, 
+                // or keep it. Let's keep it but ensure title is clean.
+              } else if (firstLine.length < 50) {
+                 title = firstLine;
+              }
+            }
           }
 
           return (
             <div key={workout.id} className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="font-bold text-xl">{plan.focus} Workout</h3>
+                  <h3 className="font-bold text-xl">{title}</h3>
                   <div className="text-gray-500 text-sm">
                     Scheduled: {new Date(workout.scheduled_date).toLocaleDateString()}
                   </div>
@@ -253,10 +259,8 @@ const Dashboard = () => {
                   </button>
                 </div>
               </div>
-              <div className="text-gray-700">
-                {plan.exercises.map((ex, i) => (
-                  <div key={i}>• {ex.name}: {ex.sets} sets x {ex.reps} reps</div>
-                ))}
+              <div className="text-gray-700 whitespace-pre-wrap font-mono text-sm bg-gray-50 p-2 rounded">
+                {displayText}
               </div>
             </div>
           );

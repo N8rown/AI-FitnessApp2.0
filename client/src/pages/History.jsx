@@ -6,7 +6,7 @@ const History = () => {
   const [workouts, setWorkouts] = useState([]);
   const [analytics, setAnalytics] = useState({ adherence: 0, total: 0, completed: 0 });
   const [editWorkout, setEditWorkout] = useState(null);
-  const [editData, setEditData] = useState({});
+  const [editText, setEditText] = useState('');
 
   const fetchData = async () => {
     try {
@@ -38,41 +38,37 @@ const History = () => {
   };
 
   const openEditor = (workout) => {
+    let initialText = '';
     try {
-      const actual = workout.actual_data ? JSON.parse(workout.actual_data) : {};
-      const plan = JSON.parse(workout.plan);
-      
-      // Ensure structure exists even if actual data was partial
-      const initialData = {};
-      plan.exercises.forEach((ex, i) => {
-        initialData[i] = [];
-        const actualSets = actual[i] || [];
-        for(let s=0; s<ex.sets; s++) {
-          initialData[i].push({ 
-            weight: actualSets[s]?.weight || '', 
-            reps: actualSets[s]?.reps || ex.reps 
+      // Try to parse as JSON first (legacy support)
+      const actual = JSON.parse(workout.actual_data);
+      if (typeof actual === 'string') {
+        initialText = actual;
+      } else if (actual && typeof actual === 'object') {
+        // Convert legacy object format to text
+        const plan = JSON.parse(workout.plan);
+        initialText = `Focus: ${plan.focus}\n`;
+        plan.exercises.forEach((ex, i) => {
+          initialText += `${ex.name}\n`;
+          const sets = actual[i] || [];
+          sets.forEach((s, sIndex) => {
+            initialText += `  Set ${sIndex+1}: ${s.weight}lbs x ${s.reps}\n`;
           });
-        }
-      });
-      
-      setEditData(initialData);
-      setEditWorkout({ ...workout, parsedPlan: plan });
+        });
+      }
     } catch (e) {
-      console.error("Error parsing for edit", e);
+      // It's just text
+      initialText = workout.actual_data || '';
     }
-  };
-
-  const updateEdit = (exIndex, setIndex, field, value) => {
-    const newData = { ...editData };
-    newData[exIndex][setIndex][field] = value;
-    setEditData(newData);
+    setEditText(initialText);
+    setEditWorkout(workout);
   };
 
   const saveEdit = async () => {
     if (!editWorkout) return;
     try {
       await api.put(`/workouts/${editWorkout.id}`, {
-        actual_data: editData
+        actual_data: editText
       });
       setEditWorkout(null);
       fetchData();
@@ -94,19 +90,35 @@ const History = () => {
 
       <div className="grid gap-6">
         {workouts.map((workout) => {
-          let plan, actual;
+          let displayText = '';
+          let title = "Workout";
+          
           try {
-            plan = JSON.parse(workout.plan);
-            actual = workout.actual_data ? JSON.parse(workout.actual_data) : null;
+            const actual = JSON.parse(workout.actual_data);
+            if (typeof actual === 'string') {
+              displayText = actual;
+              // Try to extract title from first line
+              const firstLine = actual.split('\n')[0];
+              if (firstLine.toLowerCase().includes('focus')) title = firstLine;
+            } else {
+              // Legacy JSON object
+              const plan = JSON.parse(workout.plan);
+              title = plan.focus + " Workout";
+              displayText = plan.exercises.map((ex, i) => {
+                const sets = actual[i] || [];
+                const setStr = sets.map((s, si) => `S${si+1}: ${s.weight}x${s.reps}`).join(', ');
+                return `• ${ex.name}: ${setStr}`;
+              }).join('\n');
+            }
           } catch (e) {
-            plan = { focus: 'Legacy', exercises: [] };
+            displayText = workout.actual_data;
           }
 
           return (
             <div key={workout.id} className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="font-bold text-xl">{plan.focus} Workout</h3>
+                  <h3 className="font-bold text-xl">{title}</h3>
                   <div className="text-gray-500 text-sm">
                     Completed: {new Date(workout.completed_date).toLocaleDateString()}
                   </div>
@@ -127,23 +139,8 @@ const History = () => {
                 </div>
               </div>
               
-              <div className="space-y-4">
-                {plan.exercises.map((ex, i) => (
-                  <div key={i} className="border-b pb-2">
-                    <div className="font-semibold">{ex.name}</div>
-                    {actual && actual[i] ? (
-                      <div className="text-sm text-gray-600 mt-1 grid grid-cols-3 gap-2">
-                        {actual[i].map((set, sIndex) => (
-                          <span key={sIndex} className="bg-gray-100 px-2 py-1 rounded">
-                            Set {sIndex + 1}: {set.weight || 0}lbs x {set.reps}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-sm text-gray-500">Planned: {ex.sets} x {ex.reps}</div>
-                    )}
-                  </div>
-                ))}
+              <div className="text-gray-700 whitespace-pre-wrap font-mono text-sm bg-gray-50 p-2 rounded">
+                {displayText}
               </div>
             </div>
           );
@@ -157,40 +154,14 @@ const History = () => {
 
       {editWorkout && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white p-6 rounded-lg w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-4">Edit Workout: {editWorkout.parsedPlan.focus}</h2>
+          <div className="bg-white p-6 rounded-lg w-full max-w-2xl m-4 max-h-[90vh] flex flex-col">
+            <h2 className="text-2xl font-bold mb-4">Edit Workout Log</h2>
             
-            <div className="space-y-6">
-              {editWorkout.parsedPlan.exercises.map((ex, exIndex) => (
-                <div key={exIndex} className="border p-4 rounded">
-                  <h3 className="font-bold text-lg mb-2">{ex.name}</h3>
-                  <div className="grid grid-cols-3 gap-4 mb-2 font-semibold text-sm text-gray-500">
-                    <div>Set</div>
-                    <div>Weight (lbs)</div>
-                    <div>Reps</div>
-                  </div>
-                  {editData[exIndex]?.map((set, setIndex) => (
-                    <div key={setIndex} className="grid grid-cols-3 gap-4 mb-2 items-center">
-                      <div className="text-gray-600">Set {setIndex + 1}</div>
-                      <input 
-                        type="number" 
-                        className="border p-1 rounded"
-                        placeholder="Weight"
-                        value={set.weight}
-                        onChange={(e) => updateEdit(exIndex, setIndex, 'weight', e.target.value)}
-                      />
-                      <input 
-                        type="number" 
-                        className="border p-1 rounded"
-                        placeholder="Reps"
-                        value={set.reps}
-                        onChange={(e) => updateEdit(exIndex, setIndex, 'reps', e.target.value)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+            <textarea
+              className="w-full h-96 border p-4 rounded font-mono text-sm"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+            />
 
             <div className="flex justify-end gap-2 mt-6">
               <button 

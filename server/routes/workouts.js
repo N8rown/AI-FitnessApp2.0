@@ -50,18 +50,18 @@ router.post('/generate', authenticate, async (req, res) => {
     if (openai) {
       try {
         const prompt = `
-          Generate a workout plan for a user with the following profile:
+          Generate a concise workout plan for a user with the following profile:
           - Goals: ${goals}
           - Equipment: ${equipment}
           - Focus for this workout: ${dayFocus || 'General'}
           
-          Return ONLY a JSON object with the following structure (no markdown, no extra text):
-          {
-            "focus": "${dayFocus || 'General'}",
-            "exercises": [
-              { "name": "Exercise Name", "sets": 3, "reps": 10 }
-            ]
-          }
+          Return a simple, plain text list of exercises with sets and reps. 
+          Do NOT use markdown formatting (no bolding, no headers).
+          Format it so it is easy to read and edit in a text box.
+          Example format:
+          Focus: Chest
+          1. Bench Press - 3 sets x 10 reps
+          2. Pushups - 3 sets x 15 reps
         `;
 
         const completion = await openai.chat.completions.create({
@@ -70,13 +70,6 @@ router.post('/generate', authenticate, async (req, res) => {
         });
 
         const content = completion.choices[0].message.content;
-        // Try to parse AI output robustly
-        const parsed = parseAiJson(content);
-        if (parsed) {
-          // return stringified JSON so rest of code stores a string
-          return JSON.stringify(parsed);
-        }
-        // Last-resort: return sanitized raw string
         return stripCodeFences(content);
       } catch (error) {
         console.error("AI Generation failed, falling back to static logic:", error);
@@ -84,36 +77,19 @@ router.post('/generate', authenticate, async (req, res) => {
     }
 
     // Fallback Static Logic
-    let exercises = [];
+    let text = `Focus: ${dayFocus || 'General'}\n`;
     const focusLower = dayFocus ? dayFocus.toLowerCase() : (goals || '').toLowerCase();
     
     if (focusLower.includes('chest') || focusLower.includes('push')) {
-      exercises = [
-        { name: "Bench Press", sets: 3, reps: 10 },
-        { name: "Incline Dumbbell Press", sets: 3, reps: 12 },
-        { name: "Pushups", sets: 3, reps: 15 }
-      ];
+      text += "1. Bench Press - 3 sets x 10 reps\n2. Incline Dumbbell Press - 3 sets x 12 reps\n3. Pushups - 3 sets x 15 reps";
     } else if (focusLower.includes('back') || focusLower.includes('pull')) {
-      exercises = [
-        { name: "Pullups", sets: 3, reps: 8 },
-        { name: "Barbell Rows", sets: 3, reps: 10 },
-        { name: "Lat Pulldowns", sets: 3, reps: 12 }
-      ];
+      text += "1. Pullups - 3 sets x 8 reps\n2. Barbell Rows - 3 sets x 10 reps\n3. Lat Pulldowns - 3 sets x 12 reps";
     } else if (focusLower.includes('legs')) {
-      exercises = [
-        { name: "Squats", sets: 4, reps: 8 },
-        { name: "Lunges", sets: 3, reps: 12 },
-        { name: "Calf Raises", sets: 3, reps: 15 }
-      ];
+      text += "1. Squats - 4 sets x 8 reps\n2. Lunges - 3 sets x 12 reps\n3. Calf Raises - 3 sets x 15 reps";
     } else {
-      // Full Body / Cardio default
-      exercises = [
-        { name: "Burpees", sets: 3, reps: 15 },
-        { name: "Bodyweight Squats", sets: 3, reps: 20 },
-        { name: "Pushups", sets: 3, reps: 15 }
-      ];
+      text += "1. Burpees - 3 sets x 15 reps\n2. Bodyweight Squats - 3 sets x 20 reps\n3. Pushups - 3 sets x 15 reps";
     }
-    return JSON.stringify({ focus: dayFocus || 'General', exercises });
+    return text;
   };
 
   const workoutsToInsert = [];
