@@ -35,16 +35,16 @@ class NutritionExpertAgent:
         Args:
             api_key: OpenRouter API key. If None, pulls from environment.
         """
-        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         
         if not self.api_key:
-            raise ValueError("OPENROUTER_API_KEY not found in environment variables")
+            raise ValueError("OPENAI_API_KEY not found in environment variables")
         
         # Initialize the LiteLLM model with OpenRouter
         self.model = LiteLLMModel(
-            model_id="openrouter/x-ai/grok-4.1-fast",
+            model_id="gpt-5-mini",
             api_key=self.api_key,
-            api_base="https://openrouter.ai/api/v1"
+            api_base="https://api.openai.com/v1"
         )
         
         # Create the agent with minimal parameters
