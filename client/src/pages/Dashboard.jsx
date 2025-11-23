@@ -14,6 +14,7 @@ const Dashboard = () => {
   // Logging State
   const [activeWorkout, setActiveWorkout] = useState(null);
   const [logData, setLogData] = useState({}); // { exerciseIndex: { setIndex: { weight: 0, reps: 0 } } }
+  const [newExercise, setNewExercise] = useState({ name: '', sets: 3, reps: 10 });
 
   const fetchScheduled = async () => {
     try {
@@ -67,6 +68,47 @@ const Dashboard = () => {
     const newLog = { ...logData };
     newLog[exIndex][setIndex][field] = value;
     setLogData(newLog);
+  };
+
+  const handleAddExercise = () => {
+    if (!newExercise.name) return;
+
+    // 1. Update Plan
+    const updatedExercises = [...activeWorkout.parsedPlan.exercises, { ...newExercise }];
+    const updatedPlan = { ...activeWorkout.parsedPlan, exercises: updatedExercises };
+
+    // 2. Update Log Data
+    const newIndex = updatedExercises.length - 1;
+    const newLogEntry = [];
+    for(let s=0; s<newExercise.sets; s++) {
+      newLogEntry.push({ weight: '', reps: newExercise.reps });
+    }
+    
+    setLogData({ ...logData, [newIndex]: newLogEntry });
+    setActiveWorkout({ ...activeWorkout, parsedPlan: updatedPlan });
+    setNewExercise({ name: '', sets: 3, reps: 10 }); // Reset form
+  };
+
+  const handleRemoveExercise = (indexToRemove) => {
+    if (!confirm('Remove this exercise?')) return;
+
+    // 1. Update Plan
+    const updatedExercises = activeWorkout.parsedPlan.exercises.filter((_, i) => i !== indexToRemove);
+    const updatedPlan = { ...activeWorkout.parsedPlan, exercises: updatedExercises };
+
+    // 2. Update Log Data (Re-indexing)
+    const newLogData = {};
+    Object.keys(logData).forEach(key => {
+      const keyInt = parseInt(key);
+      if (keyInt < indexToRemove) {
+        newLogData[keyInt] = logData[keyInt];
+      } else if (keyInt > indexToRemove) {
+        newLogData[keyInt - 1] = logData[keyInt];
+      }
+    });
+
+    setLogData(newLogData);
+    setActiveWorkout({ ...activeWorkout, parsedPlan: updatedPlan });
   };
 
   const submitLog = async () => {
@@ -171,8 +213,16 @@ const Dashboard = () => {
             
             <div className="space-y-6">
               {activeWorkout.parsedPlan.exercises.map((ex, exIndex) => (
-                <div key={exIndex} className="border p-4 rounded">
-                  <h3 className="font-bold text-lg mb-2">{ex.name}</h3>
+                <div key={exIndex} className="border p-4 rounded relative">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-bold text-lg">{ex.name}</h3>
+                    <button 
+                      onClick={() => handleRemoveExercise(exIndex)}
+                      className="text-red-500 hover:text-red-700 text-sm font-bold"
+                    >
+                      Remove
+                    </button>
+                  </div>
                   <div className="grid grid-cols-3 gap-4 mb-2 font-semibold text-sm text-gray-500">
                     <div>Set</div>
                     <div>Weight (lbs)</div>
@@ -199,6 +249,47 @@ const Dashboard = () => {
                   ))}
                 </div>
               ))}
+
+              {/* Add Exercise Form */}
+              <div className="border p-4 rounded bg-gray-50">
+                <h3 className="font-bold text-lg mb-2">Add Exercise</h3>
+                <div className="grid grid-cols-4 gap-2 items-end">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold mb-1">Name</label>
+                    <input 
+                      type="text" 
+                      className="w-full border p-2 rounded"
+                      placeholder="e.g. Curls"
+                      value={newExercise.name}
+                      onChange={(e) => setNewExercise({...newExercise, name: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Sets</label>
+                    <input 
+                      type="number" 
+                      className="w-full border p-2 rounded"
+                      value={newExercise.sets}
+                      onChange={(e) => setNewExercise({...newExercise, sets: parseInt(e.target.value) || 1})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Reps</label>
+                    <input 
+                      type="number" 
+                      className="w-full border p-2 rounded"
+                      value={newExercise.reps}
+                      onChange={(e) => setNewExercise({...newExercise, reps: parseInt(e.target.value) || 1})}
+                    />
+                  </div>
+                </div>
+                <button 
+                  onClick={handleAddExercise}
+                  className="mt-2 w-full bg-blue-100 text-blue-600 py-2 rounded hover:bg-blue-200 font-bold"
+                >
+                  + Add Exercise
+                </button>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 mt-6">

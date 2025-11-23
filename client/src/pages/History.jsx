@@ -81,6 +81,16 @@ const History = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this workout record?')) return;
+    try {
+      await api.delete(`/workouts/${id}`);
+      fetchData();
+    } catch (error) {
+      alert('Failed to delete workout');
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-8">
@@ -123,6 +133,12 @@ const History = () => {
                     className="text-sm bg-blue-100 text-blue-600 px-3 py-1 rounded hover:bg-blue-200"
                   >
                     Edit
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(workout.id)}
+                    className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200"
+                  >
+                    Delete
                   </button>
                 </div>
               </div>
@@ -213,4 +229,5 @@ const History = () => {
   );
 };
 
-export default History;
+export default History; 
+   
