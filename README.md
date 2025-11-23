@@ -42,6 +42,11 @@ A full-stack AI fitness application with blockchain integration.
     ```
     The app runs on `http://localhost:5173`.
 
+6. START AI AGENT
+cd AI-FitnessApp2.0\nutritionAgent
+env\scripts\activate
+python nutritionAgent.py --serve
+
 ## Usage Guide
 
 1.  **Register/Login**: Create an account.

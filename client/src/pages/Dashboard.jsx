@@ -82,6 +82,16 @@ const Dashboard = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this workout?')) return;
+    try {
+      await api.delete(`/workouts/${id}`);
+      fetchScheduled();
+    } catch (error) {
+      alert('Failed to delete workout');
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto relative">
       <div className="flex justify-between items-center mb-8">
@@ -228,12 +238,20 @@ const Dashboard = () => {
                     Scheduled: {new Date(workout.scheduled_date).toLocaleDateString()}
                   </div>
                 </div>
-                <button 
-                  onClick={() => startLogging(workout)}
-                  className="text-sm bg-green-100 text-green-600 px-3 py-1 rounded hover:bg-green-200 font-bold"
-                >
-                  Start Workout
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => startLogging(workout)}
+                    className="text-sm bg-green-100 text-green-600 px-3 py-1 rounded hover:bg-green-200 font-bold"
+                  >
+                    Start Workout
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(workout.id)}
+                    className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 font-bold"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
               <div className="text-gray-700">
                 {plan.exercises.map((ex, i) => (

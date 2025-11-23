@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { getDb } from '../db.js';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
+import { parseAiJson, stripCodeFences } from '../utils/aiUtils.js';
 
 dotenv.config();
 
@@ -11,7 +12,10 @@ const SECRET_KEY = 'supersecretkey';
 
 let openai = null;
 if (process.env.OPENAI_API_KEY) {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  openai = new OpenAI({ 
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: 'http://0.0.0.0:8000/v1'
+  });
 }
 
 // Middleware to verify token
@@ -66,9 +70,14 @@ router.post('/generate', authenticate, async (req, res) => {
         });
 
         const content = completion.choices[0].message.content;
-        // Clean up potential markdown code blocks if the model adds them
-        const jsonStr = content.replace(/```json/g, '').replace(/```/g, '').trim();
-        return jsonStr;
+        // Try to parse AI output robustly
+        const parsed = parseAiJson(content);
+        if (parsed) {
+          // return stringified JSON so rest of code stores a string
+          return JSON.stringify(parsed);
+        }
+        // Last-resort: return sanitized raw string
+        return stripCodeFences(content);
       } catch (error) {
         console.error("AI Generation failed, falling back to static logic:", error);
       }
@@ -174,6 +183,22 @@ router.get('/analytics', authenticate, async (req, res) => {
   
   const adherence = total.count > 0 ? Math.round((completed.count / total.count) * 100) : 0;
   res.json({ adherence, total: total.count, completed: completed.count });
+});
+
+router.delete('/:id', authenticate, async (req, res) => {
+  const db = await getDb();
+  await db.run('DELETE FROM workouts WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+  res.json({ success: true });
+});
+
+router.put('/:id', authenticate, async (req, res) => {
+  const { actual_data } = req.body;
+  const db = await getDb();
+  await db.run(
+    'UPDATE workouts SET actual_data = ? WHERE id = ? AND user_id = ?',
+    [JSON.stringify(actual_data), req.params.id, req.user.id]
+  );
+  res.json({ success: true });
 });
 
 export default router;

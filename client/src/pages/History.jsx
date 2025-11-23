@@ -5,6 +5,8 @@ import { logWorkoutOnChain } from '../utils/blockchain';
 const History = () => {
   const [workouts, setWorkouts] = useState([]);
   const [analytics, setAnalytics] = useState({ adherence: 0, total: 0, completed: 0 });
+  const [editWorkout, setEditWorkout] = useState(null);
+  const [editData, setEditData] = useState({});
 
   const fetchData = async () => {
     try {
@@ -32,6 +34,50 @@ const History = () => {
     } catch (error) {
       console.error(error);
       alert('Failed to log to blockchain');
+    }
+  };
+
+  const openEditor = (workout) => {
+    try {
+      const actual = workout.actual_data ? JSON.parse(workout.actual_data) : {};
+      const plan = JSON.parse(workout.plan);
+      
+      // Ensure structure exists even if actual data was partial
+      const initialData = {};
+      plan.exercises.forEach((ex, i) => {
+        initialData[i] = [];
+        const actualSets = actual[i] || [];
+        for(let s=0; s<ex.sets; s++) {
+          initialData[i].push({ 
+            weight: actualSets[s]?.weight || '', 
+            reps: actualSets[s]?.reps || ex.reps 
+          });
+        }
+      });
+      
+      setEditData(initialData);
+      setEditWorkout({ ...workout, parsedPlan: plan });
+    } catch (e) {
+      console.error("Error parsing for edit", e);
+    }
+  };
+
+  const updateEdit = (exIndex, setIndex, field, value) => {
+    const newData = { ...editData };
+    newData[exIndex][setIndex][field] = value;
+    setEditData(newData);
+  };
+
+  const saveEdit = async () => {
+    if (!editWorkout) return;
+    try {
+      await api.put(`/workouts/${editWorkout.id}`, {
+        actual_data: editData
+      });
+      setEditWorkout(null);
+      fetchData();
+    } catch (error) {
+      alert('Failed to update workout');
     }
   };
 
@@ -65,12 +111,20 @@ const History = () => {
                     Completed: {new Date(workout.completed_date).toLocaleDateString()}
                   </div>
                 </div>
-                <button 
-                  onClick={() => handleBlockchainLog(workout)}
-                  className="text-sm bg-orange-100 text-orange-600 px-3 py-1 rounded hover:bg-orange-200"
-                >
-                  Log to Blockchain
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleBlockchainLog(workout)}
+                    className="text-sm bg-orange-100 text-orange-600 px-3 py-1 rounded hover:bg-orange-200"
+                  >
+                    Log to Blockchain
+                  </button>
+                  <button 
+                    onClick={() => openEditor(workout)}
+                    className="text-sm bg-blue-100 text-blue-600 px-3 py-1 rounded hover:bg-blue-200"
+                  >
+                    Edit
+                  </button>
+                </div>
               </div>
               
               <div className="space-y-4">
@@ -100,6 +154,61 @@ const History = () => {
           </div>
         )}
       </div>
+
+      {editWorkout && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-white p-6 rounded-lg w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-4">Edit Workout: {editWorkout.parsedPlan.focus}</h2>
+            
+            <div className="space-y-6">
+              {editWorkout.parsedPlan.exercises.map((ex, exIndex) => (
+                <div key={exIndex} className="border p-4 rounded">
+                  <h3 className="font-bold text-lg mb-2">{ex.name}</h3>
+                  <div className="grid grid-cols-3 gap-4 mb-2 font-semibold text-sm text-gray-500">
+                    <div>Set</div>
+                    <div>Weight (lbs)</div>
+                    <div>Reps</div>
+                  </div>
+                  {editData[exIndex]?.map((set, setIndex) => (
+                    <div key={setIndex} className="grid grid-cols-3 gap-4 mb-2 items-center">
+                      <div className="text-gray-600">Set {setIndex + 1}</div>
+                      <input 
+                        type="number" 
+                        className="border p-1 rounded"
+                        placeholder="Weight"
+                        value={set.weight}
+                        onChange={(e) => updateEdit(exIndex, setIndex, 'weight', e.target.value)}
+                      />
+                      <input 
+                        type="number" 
+                        className="border p-1 rounded"
+                        placeholder="Reps"
+                        value={set.reps}
+                        onChange={(e) => updateEdit(exIndex, setIndex, 'reps', e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button 
+                onClick={() => setEditWorkout(null)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={saveEdit}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

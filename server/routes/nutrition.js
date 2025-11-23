@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { getDb } from '../db.js';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
+import { parseAiJson, stripCodeFences } from '../utils/aiUtils.js';
 
 dotenv.config();
 
@@ -11,7 +12,10 @@ const SECRET_KEY = 'supersecretkey';
 
 let openai = null;
 if (process.env.OPENAI_API_KEY) {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  openai = new OpenAI({ 
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: 'http://0.0.0.0:8000/v1'
+  });
 }
 
 const authenticate = (req, res, next) => {
@@ -52,10 +56,15 @@ router.post('/analyze', authenticate, async (req, res) => {
     });
 
     const content = completion.choices[0].message.content;
-    const jsonStr = content.replace(/```json/g, '').replace(/```/g, '').trim();
-    const data = JSON.parse(jsonStr);
-    
-    res.json({ success: true, data });
+    // Try to parse AI output robustly
+    const parsed = parseAiJson(content);
+    if (parsed) {
+      return res.json({ success: true, data: parsed });
+    }
+
+    // Last-resort: return sanitized string as a single field
+    const raw = stripCodeFences(content);
+    return res.json({ success: true, data: { raw: raw } });
   } catch (error) {
     console.error("AI Analysis failed:", error);
     res.status(500).json({ error: "Analysis failed" });
