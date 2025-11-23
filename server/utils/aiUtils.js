@@ -25,6 +25,10 @@ export function sanitizeJsonString(jsonStr) {
   // Remove code fences
   s = stripCodeFences(s);
 
+  // Unescape quotes that are escaped (common in some LLM outputs)
+  // e.g. {\"key\": \"value\"} -> {"key": "value"}
+  s = s.replace(/(?<!\\)\\"/g, '"');
+
   // Handle newlines inside strings: replace actual newlines with \n
   s = s.replace(/"((?:[^"\\]|\\[\s\S])*)"/g, (match, content) => {
     return '"' + content.replace(/\r?\n/g, '\\n') + '"';
