@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard';
 import History from './pages/History';
 import Nutrition from './pages/Nutrition';
 import Leaderboard from './pages/Leaderboard';
+import Profile from './pages/Profile';
+import Chat from './pages/Chat';
 import Navbar from './components/Navbar';
 
 const PrivateRoute = ({ children }) => {
@@ -60,6 +62,22 @@ function App() {
               element={
                 <PrivateRoute>
                   <Leaderboard />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <PrivateRoute>
+                  <Profile />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/chat" 
+              element={
+                <PrivateRoute>
+                  <Chat />
                 </PrivateRoute>
               } 
             />

@@ -11,6 +11,12 @@ const Dashboard = () => {
   const [genFocus, setGenFocus] = useState('');
   const [genDays, setGenDays] = useState(3);
 
+  // Manual Creation State
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualFocus, setManualFocus] = useState('');
+  const [manualExercises, setManualExercises] = useState([]);
+  const [manualNewExercise, setManualNewExercise] = useState({ name: '', sets: 3, reps: 10 });
+
   // Logging State
   const [activeWorkout, setActiveWorkout] = useState(null);
   const [logData, setLogData] = useState({}); // { exerciseIndex: { setIndex: { weight: 0, reps: 0 } } }
@@ -134,17 +140,155 @@ const Dashboard = () => {
     }
   };
 
+  const handleManualAddExercise = () => {
+    if (!manualNewExercise.name) return;
+    setManualExercises([...manualExercises, { ...manualNewExercise }]);
+    setManualNewExercise({ name: '', sets: 3, reps: 10 });
+  };
+
+  const handleManualRemoveExercise = (index) => {
+    setManualExercises(manualExercises.filter((_, i) => i !== index));
+  };
+
+  const handleManualSubmit = async () => {
+    if (!manualFocus || manualExercises.length === 0) {
+      alert('Please add a focus and at least one exercise.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post('/workouts/manual', {
+        plan: {
+          focus: manualFocus,
+          exercises: manualExercises
+        }
+      });
+      setShowManualModal(false);
+      setManualFocus('');
+      setManualExercises([]);
+      await fetchScheduled();
+    } catch (error) {
+      alert('Failed to create workout');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto relative">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Upcoming Workouts</h1>
-        <button 
-          onClick={() => setShowGenModal(true)} 
-          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-        >
-          Generate New Workout
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setShowManualModal(true)} 
+            className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
+          >
+            Create Custom Workout
+          </button>
+          <button 
+            onClick={() => setShowGenModal(true)} 
+            className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+          >
+            Generate New Workout
+          </button>
+        </div>
       </div>
+
+      {/* Manual Creation Modal */}
+      {showManualModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">Create Custom Workout</h2>
+            
+            <div className="mb-4">
+              <label className="block mb-2 font-bold">Workout Focus</label>
+              <input 
+                type="text" 
+                className="w-full border p-2 rounded"
+                placeholder="e.g. Upper Body Power"
+                value={manualFocus}
+                onChange={(e) => setManualFocus(e.target.value)}
+              />
+            </div>
+
+            <div className="mb-4">
+              <h3 className="font-bold mb-2">Exercises</h3>
+              {manualExercises.length > 0 ? (
+                <div className="space-y-2 mb-4">
+                  {manualExercises.map((ex, i) => (
+                    <div key={i} className="flex justify-between items-center bg-gray-50 p-2 rounded border">
+                      <span>{ex.name} ({ex.sets} x {ex.reps})</span>
+                      <button 
+                        onClick={() => handleManualRemoveExercise(i)}
+                        className="text-red-500 hover:text-red-700 font-bold"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm mb-4">No exercises added yet.</p>
+              )}
+
+              <div className="border p-3 rounded bg-gray-50">
+                <div className="grid grid-cols-4 gap-2 items-end">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold mb-1">Name</label>
+                    <input 
+                      type="text" 
+                      className="w-full border p-2 rounded"
+                      placeholder="Exercise Name"
+                      value={manualNewExercise.name}
+                      onChange={(e) => setManualNewExercise({...manualNewExercise, name: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Sets</label>
+                    <input 
+                      type="number" 
+                      className="w-full border p-2 rounded"
+                      value={manualNewExercise.sets}
+                      onChange={(e) => setManualNewExercise({...manualNewExercise, sets: parseInt(e.target.value) || 1})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Reps</label>
+                    <input 
+                      type="number" 
+                      className="w-full border p-2 rounded"
+                      value={manualNewExercise.reps}
+                      onChange={(e) => setManualNewExercise({...manualNewExercise, reps: parseInt(e.target.value) || 1})}
+                    />
+                  </div>
+                </div>
+                <button 
+                  onClick={handleManualAddExercise}
+                  className="mt-2 w-full bg-blue-100 text-blue-600 py-1 rounded hover:bg-blue-200 font-bold text-sm"
+                >
+                  + Add to List
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button 
+                onClick={() => setShowManualModal(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleManualSubmit}
+                disabled={loading}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                {loading ? 'Saving...' : 'Save Workout'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Generation Modal */}
       {showGenModal && (
@@ -199,6 +343,117 @@ const Dashboard = () => {
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 {loading ? 'Generating...' : 'Generate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Creation Modal */}
+      {showManualModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-96">
+            <h2 className="text-xl font-bold mb-4">Create Workout Manually</h2>
+            
+            <div className="mb-4">
+              <label className="block mb-2">Focus (e.g. Chest, Legs)</label>
+              <input 
+                type="text" 
+                className="w-full border p-2 rounded"
+                value={manualFocus}
+                onChange={(e) => setManualFocus(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-4 mb-4">
+              {manualExercises.map((ex, index) => (
+                <div key={index} className="flex gap-2 items-center">
+                  <input 
+                    type="text" 
+                    className="border p-2 rounded flex-1"
+                    placeholder="Exercise Name"
+                    value={ex.name}
+                    onChange={(e) => {
+                      const updated = [...manualExercises];
+                      updated[index].name = e.target.value;
+                      setManualExercises(updated);
+                    }}
+                  />
+                  <input 
+                    type="number" 
+                    className="border p-2 rounded w-20"
+                    placeholder="Sets"
+                    value={ex.sets}
+                    onChange={(e) => {
+                      const updated = [...manualExercises];
+                      updated[index].sets = parseInt(e.target.value) || 1;
+                      setManualExercises(updated);
+                    }}
+                  />
+                  <input 
+                    type="number" 
+                    className="border p-2 rounded w-20"
+                    placeholder="Reps"
+                    value={ex.reps}
+                    onChange={(e) => {
+                      const updated = [...manualExercises];
+                      updated[index].reps = parseInt(e.target.value) || 1;
+                      setManualExercises(updated);
+                    }}
+                  />
+                  <button 
+                    onClick={() => handleManualRemoveExercise(index)}
+                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2 mb-4">
+              <input 
+                type="text" 
+                className="border p-2 rounded flex-1"
+                placeholder="New Exercise Name"
+                value={manualNewExercise.name}
+                onChange={(e) => setManualNewExercise({ ...manualNewExercise, name: e.target.value })}
+              />
+              <input 
+                type="number" 
+                className="border p-2 rounded w-20"
+                placeholder="Sets"
+                value={manualNewExercise.sets}
+                onChange={(e) => setManualNewExercise({ ...manualNewExercise, sets: parseInt(e.target.value) || 1 })}
+              />
+              <input 
+                type="number" 
+                className="border p-2 rounded w-20"
+                placeholder="Reps"
+                value={manualNewExercise.reps}
+                onChange={(e) => setManualNewExercise({ ...manualNewExercise, reps: parseInt(e.target.value) || 1 })}
+              />
+              <button 
+                onClick={handleManualAddExercise}
+                className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+              >
+                Add Exercise
+              </button>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button 
+                onClick={() => setShowManualModal(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleManualSubmit}
+                disabled={loading}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                {loading ? 'Creating...' : 'Create Workout'}
               </button>
             </div>
           </div>

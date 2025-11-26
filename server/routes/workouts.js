@@ -202,4 +202,18 @@ router.put('/:id', authenticate, async (req, res) => {
   res.json({ success: true });
 });
 
+router.post('/manual', authenticate, async (req, res) => {
+  const { plan, date } = req.body; // plan is expected to be a JSON object { focus, exercises: [] }
+  const db = await getDb();
+  
+  const scheduledDate = date || new Date().toISOString();
+  
+  await db.run(
+    'INSERT INTO workouts (user_id, plan, scheduled_date, is_completed) VALUES (?, ?, ?, 0)',
+    [req.user.id, JSON.stringify(plan), scheduledDate]
+  );
+  
+  res.json({ success: true });
+});
+
 export default router;

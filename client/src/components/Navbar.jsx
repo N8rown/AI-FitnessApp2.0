@@ -22,6 +22,8 @@ const Navbar = () => {
                 <Link to="/history" className="text-gray-700 hover:text-blue-600">History</Link>
                 <Link to="/nutrition" className="text-gray-700 hover:text-blue-600">Nutrition</Link>
                 <Link to="/leaderboard" className="text-gray-700 hover:text-blue-600">Leaderboard</Link>
+                <Link to="/chat" className="text-gray-700 hover:text-blue-600">Chat</Link>
+                <Link to="/profile" className="text-gray-700 hover:text-blue-600">Profile</Link>
                 <button onClick={handleLogout} className="text-gray-700 hover:text-red-600">Logout</button>
               </>
             ) : (
