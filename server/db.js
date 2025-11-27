@@ -27,7 +27,8 @@ export async function initDb() {
       height_in INTEGER,
       weight_lbs REAL,
       equipment TEXT,
-      goals TEXT
+      goals TEXT,
+      experience TEXT
     );
 
     CREATE TABLE IF NOT EXISTS workouts (

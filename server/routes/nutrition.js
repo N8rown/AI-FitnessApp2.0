@@ -100,4 +100,22 @@ router.get('/', authenticate, async (req, res) => {
   res.json({ logs, totals });
 });
 
+router.get('/history', authenticate, async (req, res) => {
+  const db = await getDb();
+  const history = await db.all(`
+    SELECT date, 
+           SUM(calories) as calories, 
+           SUM(protein) as protein, 
+           SUM(carbs) as carbs, 
+           SUM(fats) as fats 
+    FROM nutrition 
+    WHERE user_id = ? 
+    GROUP BY date 
+    ORDER BY date DESC
+    LIMIT 30
+  `, [req.user.id]);
+  
+  res.json(history);
+});
+
 export default router;

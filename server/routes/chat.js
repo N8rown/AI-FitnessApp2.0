@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+import { getDb } from '../db.js';
+
 const router = express.Router();
 const SECRET_KEY = 'supersecretkey';
 
@@ -41,33 +43,45 @@ router.post('/', authenticate, async (req, res) => {
   }
 
   try {
+    // Fetch user profile for context
+    const db = await getDb();
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    
+    let contextMessage = message;
+    if (user) {
+      const profileContext = `
+User Profile:
+- Height: ${user.height_ft}'${user.height_in}"
+- Weight: ${user.weight_lbs} lbs
+- Goals: ${user.goals}
+- Equipment: ${user.equipment}
+- Experience: ${user.experience || 'Not specified'}
+
+User Question: ${message}
+`;
+      contextMessage = profileContext;
+    }
+
     // Construct messages array from history + current message
     const messages = history ? [...history] : [];
-    messages.push({ role: "user", content: message });
+    messages.push({ role: "user", content: contextMessage });
 
-    // Add system prompt if it's the start of conversation (optional, as the agent has its own system prompt)
-    // But the agent code shows it prepends system prompt to the user message in `chat` method.
-    // However, since we are using the /v1/chat/completions endpoint of the python script, 
-    // we should check how `nutritionAgent.py` handles it.
-    // It takes `messages` list, finds the last user message, and sends it to `agent.chat(user_message)`.
-    // `agent.chat` prepends the system prompt.
-    // So we just need to send the user message. 
-    // But wait, if we send history, the python script currently only looks at the *last* user message:
-    // `for msg in reversed(messages): if msg.get('role') == 'user': ... break`
-    // So history might not be fully supported by the current python script implementation for context, 
-    // but we can still send it. The python script seems to maintain its own history in `self.conversation_history` but `chat` method doesn't seem to use it effectively in the provided snippet?
-    // Actually `NutritionExpertAgent` has `self.conversation_history` but `chat` method just does `self.agent.run(full_message)`.
-    // The `smolagents` `ToolCallingAgent` might handle history if we passed it, but here we are just passing a string.
-    // For now, we will just send the messages as is, and the python script will pick the last one.
-    
     const completion = await openai.chat.completions.create({
       messages: messages,
       model: "nutrition-expert-grok", // Model name defined in python script
     });
 
     const responseMessage = completion.choices[0].message;
+    
+    let content = responseMessage.content;
+    // Clean up "Final Answer:" prefix if present (common in agent outputs)
+    if (content && content.includes("Final Answer:")) {
+       content = content.split("Final Answer:")[1].trim();
+    } else if (content && content.includes("Final answer:")) {
+       content = content.split("Final answer:")[1].trim();
+    }
 
-    res.json({ success: true, message: responseMessage });
+    res.json({ success: true, message: { role: responseMessage.role, content: content } });
   } catch (error) {
     console.error("AI Chat failed:", error);
     res.status(500).json({ error: "Chat failed" });

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { api } from '../utils/api';
+import api from '../utils/api';
 
 function Chat() {
   const [messages, setMessages] = useState([
@@ -34,8 +34,8 @@ function Chat() {
         history: messages 
       });
 
-      if (res.success && res.message) {
-        setMessages(prev => [...prev, res.message]);
+      if (res.data.success && res.data.message) {
+        setMessages(prev => [...prev, res.data.message]);
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
       }

@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../utils/api';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const res = await api.post('/auth/login', { username, password });
       localStorage.setItem('token', res.data.token);
-      navigate('/');
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      
+      // Redirect to the page they were trying to visit, or dashboard
+      const from = location.state?.from?.pathname || '/';
+      navigate(from);
     } catch (error) {
       alert('Login failed');
     }

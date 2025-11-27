@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../utils/api';
+import api from '../utils/api';
 
 function Profile() {
   const navigate = useNavigate();
@@ -9,7 +9,8 @@ function Profile() {
     height_in: '',
     weight_lbs: '',
     goals: '',
-    equipment: ''
+    equipment: '',
+    experience: ''
   });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -23,7 +24,8 @@ function Profile() {
         height_in: user.height_in || '',
         weight_lbs: user.weight_lbs || '',
         goals: user.goals || '',
-        equipment: user.equipment || ''
+        equipment: user.equipment || '',
+        experience: user.experience || ''
       });
       setLoading(false);
     } else {
@@ -45,7 +47,7 @@ function Profile() {
     
     try {
       const res = await api.put('/auth/profile', formData);
-      if (res.success) {
+      if (res.data.success) {
         // Update local storage
         const userStr = localStorage.getItem('user');
         if (userStr) {
@@ -137,6 +139,22 @@ function Profile() {
             placeholder="e.g., Dumbbells, Yoga mat, Gym membership"
             required
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Experience Level</label>
+          <select
+            name="experience"
+            value={formData.experience}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+            required
+          >
+            <option value="">Select Experience Level</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Advanced">Advanced</option>
+          </select>
         </div>
 
         <button

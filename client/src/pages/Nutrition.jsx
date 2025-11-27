@@ -4,6 +4,7 @@ import api from '../utils/api';
 const Nutrition = () => {
   const [logs, setLogs] = useState([]);
   const [totals, setTotals] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0 });
+  const [history, setHistory] = useState([]);
   const [form, setForm] = useState({ food_item: '', calories: '', protein: '', carbs: '', fats: '' });
 
   const fetchLogs = async () => {
@@ -16,8 +17,18 @@ const Nutrition = () => {
     }
   };
 
+  const fetchHistory = async () => {
+    try {
+      const res = await api.get('/nutrition/history');
+      setHistory(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     fetchLogs();
+    fetchHistory();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -26,6 +37,7 @@ const Nutrition = () => {
       await api.post('/nutrition', form);
       setForm({ food_item: '', calories: '', protein: '', carbs: '', fats: '' });
       fetchLogs();
+      fetchHistory(); // Refresh history as well (in case we logged for a new day, though usually it's today)
     } catch (error) {
       alert('Failed to log food');
     }
@@ -165,6 +177,40 @@ const Nutrition = () => {
               {logs.length === 0 && <div className="text-gray-500 text-center">No logs today.</div>}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* History Section */}
+      <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold mb-6">Nutrition History (Last 30 Days)</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="p-3 font-semibold text-gray-600">Date</th>
+                <th className="p-3 font-semibold text-gray-600">Calories</th>
+                <th className="p-3 font-semibold text-blue-600">Protein (g)</th>
+                <th className="p-3 font-semibold text-orange-600">Carbs (g)</th>
+                <th className="p-3 font-semibold text-yellow-600">Fats (g)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {history.map((day, index) => (
+                <tr key={index} className="hover:bg-gray-50">
+                  <td className="p-3">{new Date(day.date).toLocaleDateString()}</td>
+                  <td className="p-3 font-bold">{day.calories}</td>
+                  <td className="p-3">{day.protein}</td>
+                  <td className="p-3">{day.carbs}</td>
+                  <td className="p-3">{day.fats}</td>
+                </tr>
+              ))}
+              {history.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="p-4 text-center text-gray-500">No history available.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

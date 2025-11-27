@@ -8,6 +8,7 @@ const Onboarding = () => {
   const [weightLbs, setWeightLbs] = useState('');
   const [goals, setGoals] = useState('');
   const [equipment, setEquipment] = useState('');
+  const [experience, setExperience] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -18,7 +19,8 @@ const Onboarding = () => {
         height_in: heightIn, 
         weight_lbs: weightLbs, 
         goals,
-        equipment 
+        equipment,
+        experience
       });
       navigate('/');
     } catch (error) {
@@ -80,6 +82,20 @@ const Onboarding = () => {
             onChange={(e) => setGoals(e.target.value)}
             placeholder="e.g., Build muscle, Lose weight, Cardio"
           />
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 mb-2">Experience Level</label>
+          <select 
+            className="w-full p-2 border rounded"
+            value={experience}
+            onChange={(e) => setExperience(e.target.value)}
+            required
+          >
+            <option value="">Select Experience Level</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Advanced">Advanced</option>
+          </select>
         </div>
         <button type="submit" className="w-full bg-purple-600 text-white p-2 rounded hover:bg-purple-700">
           Save Profile

@@ -33,7 +33,7 @@ router.post('/login', async (req, res) => {
   }
   
   const token = jwt.sign({ id: user.id, username: user.username }, SECRET_KEY, { expiresIn: '1h' });
-  res.json({ token, user: { id: user.id, username: user.username, height_ft: user.height_ft, height_in: user.height_in, weight_lbs: user.weight_lbs, goals: user.goals, equipment: user.equipment } });
+  res.json({ token, user: { id: user.id, username: user.username, height_ft: user.height_ft, height_in: user.height_in, weight_lbs: user.weight_lbs, goals: user.goals, equipment: user.equipment, experience: user.experience } });
 });
 
 router.put('/profile', async (req, res) => {
@@ -43,12 +43,12 @@ router.put('/profile', async (req, res) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, SECRET_KEY);
-    const { height_ft, height_in, weight_lbs, goals, equipment } = req.body;
+    const { height_ft, height_in, weight_lbs, goals, equipment, experience } = req.body;
     const db = await getDb();
     
     await db.run(
-      'UPDATE users SET height_ft = ?, height_in = ?, weight_lbs = ?, goals = ?, equipment = ? WHERE id = ?',
-      [height_ft, height_in, weight_lbs, goals, equipment, decoded.id]
+      'UPDATE users SET height_ft = ?, height_in = ?, weight_lbs = ?, goals = ?, equipment = ?, experience = ? WHERE id = ?',
+      [height_ft, height_in, weight_lbs, goals, equipment, experience, decoded.id]
     );
     
     res.json({ success: true });
